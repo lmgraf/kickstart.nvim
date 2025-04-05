@@ -118,6 +118,19 @@ vim.schedule(function()
   vim.o.clipboard = 'unnamedplus'
 end)
 
+vim.g.clipboard = {
+  name = 'clip.exe',
+  copy = {
+    ['+'] = '/mnt/c/Windows/System32/clip.exe',
+    ['*'] = '/mnt/c/Windows/System32/clip.exe',
+  },
+  paste = {
+    ['+'] = 'powershell.exe -nologo -noprofile Get-Clipboard | sed "s/\\r$//"',
+    ['*'] = 'powershell.exe -nologo -noprofile Get-Clipboard | sed "s/\\r$//"',
+  },
+  cache_enabled = 0,
+}
+
 -- Enable break indent
 vim.o.breakindent = true
 

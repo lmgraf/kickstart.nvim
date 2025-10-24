@@ -1039,6 +1039,21 @@ require('lazy').setup({
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
       vim.cmd.colorscheme 'tokyonight-night'
+
+      -- You can configure highlights by doing something like:
+      vim.cmd.hi 'Comment gui=NONE'
+
+      vim.api.nvim_create_autocmd('VimEnter', {
+        callback = function()
+          for _, group in ipairs(vim.fn.getcompletion('', 'highlight')) do
+            -- Get current highlight properties
+            local hl = vim.api.nvim_get_hl(0, { name = group })
+            -- Remove bold, keep everything else
+            hl.bold = false
+            vim.api.nvim_set_hl(0, group, hl)
+          end
+        end,
+      })
     end,
   },
 

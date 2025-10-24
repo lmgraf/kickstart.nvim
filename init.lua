@@ -110,6 +110,14 @@ vim.o.mouse = 'a'
 -- Don't show the mode, since it's already in the status line
 vim.o.showmode = false
 
+-- Treat .env and .env.* files as sh
+vim.filetype.add {
+  pattern = {
+    ['.env'] = 'sh',
+    ['.env.*'] = 'sh',
+  },
+}
+
 -- Sync clipboard between OS and Neovim.
 --  Schedule the setting after `UiEnter` because it can increase startup-time.
 --  Remove this option if you want your OS clipboard to remain independent.
@@ -121,8 +129,8 @@ end)
 vim.g.clipboard = {
   name = 'clip.exe',
   copy = {
-    ['+'] = '/mnt/c/Windows/System32/clip.exe',
-    ['*'] = '/mnt/c/Windows/System32/clip.exe',
+    ['+'] = '/home/lukas/.wsl-copy.sh',
+    ['*'] = '/home/lukas/.wsl-copy.sh',
   },
   paste = {
     ['+'] = 'powershell.exe -nologo -noprofile Get-Clipboard | sed "s/\\r$//"',
@@ -195,13 +203,18 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 --
 -- NOTE: This won't work in all terminal emulators/tmux/etc. Try your own mapping
 -- or just use <C-\><C-n> to exit terminal mode
-vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
+vim.keymap.set('t', '<Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
+vim.keymap.set('t', '<C-n>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
 -- TIP: Disable arrow keys in normal mode
--- vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
--- vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
--- vim.keymap.set('n', '<up>', '<cmd>echo "Use k to move!!"<CR>')
--- vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>')
+vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
+vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
+vim.keymap.set('n', '<up>', '<cmd>echo "Use k to move!!"<CR>')
+vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>')
+
+-- Move up and down by screen lines
+vim.keymap.set('n', 'j', 'gj', { noremap = true, silent = true })
+vim.keymap.set('n', 'k', 'gk', { noremap = true, silent = true })
 
 -- Keybinds to make split navigation easier.
 --  Use CTRL+<hjkl> to switch between windows
@@ -261,6 +274,11 @@ rtp:prepend(lazypath)
 require('lazy').setup({
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
   'NMAC427/guess-indent.nvim', -- Detect tabstop and shiftwidth automatically
+
+  {
+    'tpope/vim-fugitive',
+    lazy = false, -- load immediately (optional, you can also lazy-load on git commands)
+  },
 
   -- NOTE: Plugins can also be added by using a table,
   -- with the first argument being the link and the following
@@ -439,6 +457,12 @@ require('lazy').setup({
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
+
+      local function find_files_and_all_hidden()
+        builtin.find_files { hidden = true, no_ignore = true }
+      end
+
+      vim.keymap.set('n', '<leader>sa', find_files_and_all_hidden, { desc = '[S]earch [A]ll Files' })
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
       vim.keymap.set('n', '<leader>sf', builtin.find_files, { desc = '[S]earch [F]iles' })
@@ -562,13 +586,49 @@ require('lazy').setup({
             vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = 'LSP: ' .. desc })
           end
 
-          -- Rename the variable under your cursor.
-          --  Most Language Servers support renaming across files, etc.
-          map('grn', vim.lsp.buf.rename, '[R]e[n]ame')
+          -- Jump to the definition of the word under your cursor.
+          --  This is where a variable was first declared, or where a function is defined, etc.
+          --  To jump back, press <C-t>.
+          map('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
+          -- map('ngd', function()
+          --   require('telescope.builtin').lsp_definitions { jump_type = 'tab' }
+          -- end, '[N]ew tab [G]oto [D]efinition')
 
-          -- Execute a code action, usually your cursor needs to be on top of an error
-          -- or a suggestion from your LSP for this to activate.
-          map('gra', vim.lsp.buf.code_action, '[G]oto Code [A]ction', { 'n', 'x' })
+          map('ngd', function()
+            local params = vim.lsp.util.make_position_params()
+
+            vim.lsp.buf_request(0, 'textDocument/definition', params, function(err, result)
+              if err or not result or vim.tbl_isempty(result) then
+                vim.notify('No definition found', vim.log.levels.WARN)
+                return
+              end
+
+              local def = result[1]
+              local uri = def.uri or def.targetUri
+              local range = def.range or def.targetSelectionRange
+              local target_path = vim.fn.fnamemodify(vim.uri_to_fname(uri), ':p') -- normalize
+
+              -- Search all tabs and windows for an open window with that file
+              for tabnr = 1, vim.fn.tabpagenr '$' do
+                local winlist = vim.fn.tabpagewinnr(tabnr, '$')
+                for winnr = 1, winlist do
+                  local winid = vim.fn.win_getid(winnr, tabnr)
+                  local bufnr = vim.fn.winbufnr(winid)
+                  local bufname = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ':p')
+                  if bufname == target_path then
+                    vim.cmd(tabnr .. 'tabnext')
+                    vim.fn.win_gotoid(winid)
+                    vim.api.nvim_win_set_cursor(0, { range.start.line + 1, range.start.character })
+                    return
+                  end
+                end
+              end
+
+              -- If not found, open in new tab
+              vim.cmd('tabnew ' .. target_path)
+              vim.api.nvim_win_set_cursor(0, { range.start.line + 1, range.start.character })
+            end)
+          end, '[N]ew tab [G]oto [D]efinition (reuse tab if open)')
 
           -- Find references for the word under your cursor.
           map('grr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
@@ -650,6 +710,27 @@ require('lazy').setup({
               vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = event.buf })
             end, '[T]oggle Inlay [H]ints')
           end
+
+          -- Keymap to toggle terminal
+
+          vim.keymap.set('n', '<leader>tr', function()
+            -- Look for an open terminal window
+            local term_win = nil
+            for _, win in ipairs(vim.api.nvim_list_wins()) do
+              local buf = vim.api.nvim_win_get_buf(win)
+              if vim.bo[buf].buftype == 'terminal' then
+                term_win = win
+                break
+              end
+            end
+            if term_win then
+              -- Close terminal window if open
+              vim.api.nvim_win_close(term_win, true)
+            else
+              -- Open terminal and enter insert mode
+              vim.cmd 'split | terminal'
+            end
+          end, { desc = '[T]oggle [T]erminal' })
         end,
       })
 
@@ -714,6 +795,7 @@ require('lazy').setup({
           -- cmd = { ... },
           -- filetypes = { ... },
           -- capabilities = {},
+
           settings = {
             Lua = {
               completion = {
@@ -815,7 +897,12 @@ require('lazy').setup({
         -- python = { "isort", "black" },
         --
         -- You can use 'stop_after_first' to run the first available formatter from the list
-        -- javascript = { "prettierd", "prettier", stop_after_first = true },
+        javascript = { 'prettierd' },
+        typescript = { 'prettierd' },
+        typescriptreact = { 'prettierd' },
+        javascriptreact = { 'prettierd' },
+        html = { 'prettierd' },
+        css = { 'prettierd' },
       },
     },
   },
@@ -842,12 +929,12 @@ require('lazy').setup({
           -- `friendly-snippets` contains a variety of premade snippets.
           --    See the README about individual language/framework/plugin snippets:
           --    https://github.com/rafamadriz/friendly-snippets
-          -- {
-          --   'rafamadriz/friendly-snippets',
-          --   config = function()
-          --     require('luasnip.loaders.from_vscode').lazy_load()
-          --   end,
-          -- },
+          {
+            'rafamadriz/friendly-snippets',
+            config = function()
+              require('luasnip.loaders.from_vscode').lazy_load()
+            end,
+          },
         },
         opts = {},
       },
@@ -916,6 +1003,18 @@ require('lazy').setup({
 
       -- Shows a signature help window while you type arguments for a function
       signature = { enabled = true },
+    },
+  },
+
+  -- React
+  {
+    'windwp/nvim-ts-autotag',
+    opts = {
+      opts = {
+        enable_close = true,
+        enable_rename = false,
+        enable_close_on_slash = false,
+      },
     },
   },
 
@@ -989,7 +1088,25 @@ require('lazy').setup({
     main = 'nvim-treesitter.configs', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
+      ensure_installed = {
+        'bash',
+        'c',
+        'diff',
+        'html',
+        'lua',
+        'luadoc',
+        'markdown',
+        'markdown_inline',
+        'query',
+        'vim',
+        'vimdoc',
+        'javascript',
+        'typescript',
+        'tsx',
+        'json',
+        'html',
+        'css',
+      },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
@@ -1000,6 +1117,13 @@ require('lazy').setup({
         additional_vim_regex_highlighting = { 'ruby' },
       },
       indent = { enable = true, disable = { 'ruby' } },
+      select = {
+        enable = true,
+        keymaps = {
+          ['at'] = '@tag.outer', -- select around tag
+          ['it'] = '@tag.inner', -- select inside tag
+        },
+      },
     },
     -- There are additional nvim-treesitter modules that you can use to interact
     -- with nvim-treesitter. You should go explore a few and see what interests you:

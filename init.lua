@@ -755,6 +755,16 @@ require('lazy').setup({
         -- But for many setups, the LSP (`ts_ls`) will work just fine
         -- ts_ls = {}
 
+        eslint = {
+          settings = {
+            --helps eslint find the eslintrc when it's placed in a subfolder
+            workingDirectory = { mode = 'auto' },
+            experimental = {
+              useFlatConfig = true,
+            },
+          },
+        },
+
         lua_ls = {
           -- cmd = { ... },
           -- filetypes = { ... },
@@ -798,6 +808,7 @@ require('lazy').setup({
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
+        'eslint-lsp',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 

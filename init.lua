@@ -169,8 +169,8 @@ vim.keymap.set('n', '<up>', '<cmd>echo "Use k to move!!"<CR>')
 vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>')
 
 -- Move up and down by screen lines
-vim.keymap.set('n', 'j', 'gj', { noremap = true, silent = true })
-vim.keymap.set('n', 'k', 'gk', { noremap = true, silent = true })
+-- vim.keymap.set('n', 'j', 'gj', { noremap = true, silent = true })
+-- vim.keymap.set('n', 'k', 'gk', { noremap = true, silent = true })
 
 -- Keybinds to make split navigation easier.
 --  Use CTRL+<hjkl> to switch between windows

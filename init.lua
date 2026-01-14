@@ -765,6 +765,8 @@ require('lazy').setup({
           },
         },
 
+        tailwindcss = {},
+
         lua_ls = {
           -- cmd = { ... },
           -- filetypes = { ... },

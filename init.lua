@@ -143,6 +143,11 @@ vim.o.scrolloff = 10
 -- See `:help 'confirm'`
 vim.o.confirm = true
 
+-- if performing an operation that would fail due to unsaved changes in the buffer (like `:q`),
+-- instead raise a dialog asking if you wish to save the current file(s)
+-- See `:help 'confirm'`
+vim.o.confirm = true
+
 -- [[ Basic Keymaps ]]
 --  See `:help vim.keymap.set()`
 
@@ -219,6 +224,22 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
     error('Error cloning lazy.nvim:\n' .. out)
   end
 end
+
+-- [[ Autostart nvim-treesitter ]]
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = { 'lua', 'python', 'javascript', 'typescript', 'jsx', 'tsx' },
+  callback = function()
+    local ft = vim.bo.filetype
+    local ok, parser = pcall(vim.treesitter.get_parser, 0, ft)
+    if ok and parser then
+      vim.treesitter.start()
+    else
+      vim.schedule(function()
+        vim.notify('Treesitter parser not installed for ' .. ft .. '. Try :TSInstall ' .. ft, vim.log.levels.WARN)
+      end)
+    end
+  end,
+})
 
 ---@type vim.Option
 local rtp = vim.opt.rtp
@@ -508,26 +529,7 @@ require('lazy').setup({
       'saghen/blink.cmp',
     },
     config = function()
-      -- Brief aside: **What is LSP?**
-      --
-      -- LSP is an initialism you've probably heard, but might not understand what it is.
-      --
-      -- LSP stands for Language Server Protocol. It's a protocol that helps editors
-      -- and language tooling communicate in a standardized fashion.
-      --
-      -- In general, you have a "server" which is some tool built to understand a particular
-      -- language (such as `gopls`, `lua_ls`, `rust_analyzer`, etc.). These Language Servers
-      -- (sometimes called LSP servers, but that's kind of like ATM Machine) are standalone
-      -- processes that communicate with some "client" - in this case, Neovim!
-      --
-      -- LSP provides Neovim with features like:
-      --  - Go to definition
-      --  - Find references
-      --  - Autocompletion
-      --  - Symbol Search
-      --  - and more!
-      --
-      -- Thus, Language Servers are external tools that must be installed separately from
+      -- Language Servers are external tools that must be installed separately from
       -- Neovim. This is where `mason` and related plugins come into play.
       --
       -- If you're wondering about lsp vs treesitter, you can check out the wonderfully
@@ -550,15 +552,8 @@ require('lazy').setup({
             vim.keymap.set(mode, keys, func, { buffer = event.buf, desc = 'LSP: ' .. desc })
           end
 
-          -- Jump to the definition of the word under your cursor.
-          --  This is where a variable was first declared, or where a function is defined, etc.
-          --  To jump back, press <C-t>.
-          map('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
-          -- map('ngd', function()
-          --   require('telescope.builtin').lsp_definitions { jump_type = 'tab' }
-          -- end, '[N]ew tab [G]oto [D]efinition')
-
-          map('ngd', function()
+          -- Go to an lsp definition in a new tab
+          local function lsp_definitions_new_tab()
             local params = vim.lsp.util.make_position_params()
 
             vim.lsp.buf_request(0, 'textDocument/definition', params, function(err, result)
@@ -592,36 +587,18 @@ require('lazy').setup({
               vim.cmd('tabnew ' .. target_path)
               vim.api.nvim_win_set_cursor(0, { range.start.line + 1, range.start.character })
             end)
-          end, '[N]ew tab [G]oto [D]efinition (reuse tab if open)')
+          end
 
-          -- Find references for the word under your cursor.
-          map('grr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
-
-          -- Jump to the implementation of the word under your cursor.
-          --  Useful when your language has ways of declaring types without an actual implementation.
-          map('gri', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
-
-          -- Jump to the definition of the word under your cursor.
-          --  This is where a variable was first declared, or where a function is defined, etc.
-          --  To jump back, press <C-t>.
-          map('grd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
-
-          -- WARN: This is not Goto Definition, this is Goto Declaration.
-          --  For example, in C this would take you to the header.
-          map('grD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
-
-          -- Fuzzy find all the symbols in your current document.
-          --  Symbols are things like variables, functions, types, etc.
-          map('gO', require('telescope.builtin').lsp_document_symbols, 'Open Document Symbols')
-
-          -- Fuzzy find all the symbols in your current workspace.
-          --  Similar to document symbols, except searches over your entire project.
-          map('gW', require('telescope.builtin').lsp_dynamic_workspace_symbols, 'Open Workspace Symbols')
-
-          -- Jump to the type of the word under your cursor.
-          --  Useful when you're not sure what type a variable is and you want to see
-          --  the definition of its *type*, not where it was *defined*.
-          map('grt', require('telescope.builtin').lsp_type_definitions, '[G]oto [T]ype Definition')
+          map('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
+          map('ngd', lsp_definitions_new_tab, '[N]ew tab [G]oto [D]efinition (reuse tab if open)')
+          map('gtd', require('telescope.builtin').lsp_type_definitions, '[G]oto [T]ype Definition')
+          map('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
+          map('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
+          map('gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
+          map('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
+          map('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction', { 'n', 'x' })
+          map('<leader>gsd', require('telescope.builtin').lsp_document_symbols, '[G]oto [S]ymbols in [D]ocument')
+          map('<leader>gsw', require('telescope.builtin').lsp_dynamic_workspace_symbols, '[G]oto [S]ymbols in [W]orkspace')
 
           -- This function resolves a difference between neovim nightly (version 0.11) and stable (version 0.10)
           ---@param client vim.lsp.Client
@@ -753,11 +730,11 @@ require('lazy').setup({
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`ts_ls`) will work just fine
-        -- ts_ls = {}
+        -- ts_ls = {},
 
         eslint = {
           settings = {
-            --helps eslint find the eslintrc when it's placed in a subfolder
+            -- helps eslint find the eslintrc when it's placed in a subfolder
             workingDirectory = { mode = 'auto' },
             experimental = {
               useFlatConfig = true,
@@ -771,14 +748,26 @@ require('lazy').setup({
           -- cmd = { ... },
           -- filetypes = { ... },
           -- capabilities = {},
-
           settings = {
             Lua = {
+              runtime = {
+                version = 'LuaJIT',
+              },
+              diagnostics = {
+                globals = { 'vim', 'require' },
+                -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
+                -- disable = { 'missing-fields' }
+              },
+              workspace = {
+                -- Make the server aware of Neovim runtime files
+                library = vim.api.nvim_get_runtime_file('.', true),
+              },
               completion = {
                 callSnippet = 'Replace',
               },
-              -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-              -- diagnostics = { disable = { 'missing-fields' } },
+              telemetry = {
+                enable = false,
+              },
             },
           },
         },
@@ -811,6 +800,9 @@ require('lazy').setup({
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
         'eslint-lsp',
+        'pylsp',
+        'solargraph',
+        'clangd',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -827,16 +819,29 @@ require('lazy').setup({
             require('lspconfig')[server_name].setup(server)
           end,
         },
-        automatic_installation = true,
-        ensure_installed = { 'solargraph', 'pylsp', 'clangd' },
       }
     end,
   },
+
   { -- Typescript plugin
     'pmizio/typescript-tools.nvim',
     dependencies = { 'nvim-lua/plenary.nvim', 'neovim/nvim-lspconfig' },
     opts = {},
   },
+
+  -- React
+  {
+    'windwp/nvim-ts-autotag',
+    opts = {
+      opts = {
+        enable_close = true,
+        enable_rename = false,
+        enable_close_on_slash = false,
+      },
+    },
+  },
+
+  'jiangmiao/auto-pairs',
 
   { -- Autoformat
     'stevearc/conform.nvim',
@@ -917,6 +922,7 @@ require('lazy').setup({
         opts = {},
       },
       'folke/lazydev.nvim',
+      { 'roobert/tailwindcss-colorizer-cmp.nvim', config = true },
     },
     --- @module 'blink.cmp'
     --- @type blink.cmp.Config
@@ -981,22 +987,13 @@ require('lazy').setup({
 
       -- Shows a signature help window while you type arguments for a function
       signature = { enabled = true },
+      -- formatting = {
+      --   format = function(entry, item)
+      --     return require('tailwindcss-colorizer-cmp').formatter(entry, item)
+      --   end,
+      -- },
     },
   },
-
-  -- React
-  {
-    'windwp/nvim-ts-autotag',
-    opts = {
-      opts = {
-        enable_close = true,
-        enable_rename = false,
-        enable_close_on_slash = false,
-      },
-    },
-  },
-
-  'jiangmiao/auto-pairs',
 
   { -- You can easily change to a different colorscheme.
     -- Change the name of the colorscheme plugin below, and then
@@ -1017,21 +1014,6 @@ require('lazy').setup({
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
       vim.cmd.colorscheme 'tokyonight-night'
-
-      -- You can configure highlights by doing something like:
-      vim.cmd.hi 'Comment gui=NONE'
-
-      vim.api.nvim_create_autocmd('VimEnter', {
-        callback = function()
-          for _, group in ipairs(vim.fn.getcompletion('', 'highlight')) do
-            -- Get current highlight properties
-            local hl = vim.api.nvim_get_hl(0, { name = group })
-            -- Remove bold, keep everything else
-            hl.bold = false
-            vim.api.nvim_set_hl(0, group, hl)
-          end
-        end,
-      })
     end,
   },
 
@@ -1078,7 +1060,8 @@ require('lazy').setup({
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
-    main = 'nvim-treesitter.configs', -- Sets main module to use for opts
+    main = 'nvim-treesitter.config', -- Sets main module to use for opts
+    branch = 'main',
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
       ensure_installed = {
@@ -1110,13 +1093,6 @@ require('lazy').setup({
         additional_vim_regex_highlighting = { 'ruby' },
       },
       indent = { enable = true, disable = { 'ruby' } },
-      select = {
-        enable = true,
-        keymaps = {
-          ['at'] = '@tag.outer', -- select around tag
-          ['it'] = '@tag.inner', -- select inside tag
-        },
-      },
     },
     -- There are additional nvim-treesitter modules that you can use to interact
     -- with nvim-treesitter. You should go explore a few and see what interests you:
@@ -1124,6 +1100,14 @@ require('lazy').setup({
     --    - Incremental selection: Included, see `:help nvim-treesitter-incremental-selection-mod`
     --    - Show your current context: https://github.com/nvim-treesitter/nvim-treesitter-context
     --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
+  },
+  {
+    'NvChad/nvim-colorizer.lua',
+    opts = {
+      user_default_options = {
+        tailwind = true,
+      },
+    },
   },
 
   -- The following comments only work if you have downloaded the kickstart repo, not just copy pasted the

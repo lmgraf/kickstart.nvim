@@ -231,6 +231,7 @@ vim.api.nvim_create_autocmd('FileType', {
     'gitcommit',
     'lua',
     'python',
+    'json',
     'javascript',
     'typescript',
     'jsx',

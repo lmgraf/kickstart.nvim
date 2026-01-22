@@ -227,7 +227,15 @@ end
 
 -- [[ Autostart nvim-treesitter ]]
 vim.api.nvim_create_autocmd('FileType', {
-  pattern = { 'lua', 'python', 'javascript', 'typescript', 'jsx', 'tsx' },
+  pattern = {
+    'gitcommit',
+    'lua',
+    'python',
+    'javascript',
+    'typescript',
+    'jsx',
+    'tsx',
+  },
   callback = function()
     local ft = vim.bo.filetype
     local ok, parser = pcall(vim.treesitter.get_parser, 0, ft)
@@ -946,9 +954,19 @@ require('lazy').setup({
       },
 
       sources = {
-        default = { 'lsp', 'path', 'snippets', 'lazydev' },
+        default = { 'lazydev', 'lsp', 'path', 'snippets', 'buffer' },
         providers = {
-          lazydev = { module = 'lazydev.integrations.blink', score_offset = 100 },
+          lazydev = {
+            name = 'LazyDev',
+            module = 'lazydev.integrations.blink',
+            score_offset = 100,
+          },
+        },
+        per_filetype = {
+          gitcommit = { 'snippets', 'buffer' },
+        },
+        completion = {
+          ghost_text = false,
         },
       },
 
@@ -961,7 +979,34 @@ require('lazy').setup({
       -- the rust implementation via `'prefer_rust_with_warning'`
       --
       -- See :h blink-cmp-config-fuzzy for more information
-      fuzzy = { implementation = 'lua' },
+      fuzzy = {
+        implementation = 'lua',
+        sorts = function()
+          if vim.bo.filetype == 'gitcommit' then
+            return {
+              -- 1️⃣ snippets always first
+              function(a, b)
+                local SNIP = vim.lsp.protocol.CompletionItemKind.Snippet
+                if a.kind == SNIP and b.kind ~= SNIP then
+                  return true
+                end
+                if a.kind ~= SNIP and b.kind == SNIP then
+                  return false
+                end
+                -- tie → next sorter
+              end,
+
+              -- 2️⃣ normal fuzzy behavior
+              'score',
+              'sort_text',
+              'label',
+            }
+          end
+
+          -- default for everything else
+          return { 'score', 'sort_text', 'label' }
+        end,
+      },
 
       -- Shows a signature help window while you type arguments for a function
       signature = { enabled = true },
@@ -1054,6 +1099,7 @@ require('lazy').setup({
         'query',
         'vim',
         'vimdoc',
+        'gitcommit',
         'javascript',
         'typescript',
         'tsx',

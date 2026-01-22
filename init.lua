@@ -569,7 +569,7 @@ require('lazy').setup({
 
           map('gd', require('telescope.builtin').lsp_definitions, '[G]oto [D]efinition')
           map('ngd', lsp_definitions_new_tab, '[N]ew tab [G]oto [D]efinition (reuse tab if open)')
-          map('gtd', require('telescope.builtin').lsp_type_definitions, '[G]oto [T]ype Definition')
+          map('tgd', require('telescope.builtin').lsp_type_definitions, '[G]oto [T]ype Definition')
           map('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
           map('gr', require('telescope.builtin').lsp_references, '[G]oto [R]eferences')
           map('gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')

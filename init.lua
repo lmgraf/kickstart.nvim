@@ -225,31 +225,6 @@ if not (vim.uv or vim.loop).fs_stat(lazypath) then
   end
 end
 
--- [[ Autostart nvim-treesitter ]]
-vim.api.nvim_create_autocmd('FileType', {
-  pattern = {
-    'gitcommit',
-    'lua',
-    'python',
-    'json',
-    'javascript',
-    'typescript',
-    'jsx',
-    'tsx',
-  },
-  callback = function()
-    local ft = vim.bo.filetype
-    local ok, parser = pcall(vim.treesitter.get_parser, 0, ft)
-    if ok and parser then
-      vim.treesitter.start()
-    else
-      vim.schedule(function()
-        vim.notify('Treesitter parser not installed for ' .. ft .. '. Try :TSInstall ' .. ft, vim.log.levels.WARN)
-      end)
-    end
-  end,
-})
-
 ---@type vim.Option
 local rtp = vim.opt.rtp
 rtp:prepend(lazypath)
@@ -1080,39 +1055,24 @@ require('lazy').setup({
     build = ':TSUpdate',
     main = 'nvim-treesitter.config', -- Sets main module to use for opts
     branch = 'main',
-    -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
-    opts = {
-      ensure_installed = {
-        'bash',
-        'c',
-        'diff',
-        'html',
-        'lua',
-        'luadoc',
-        'markdown',
-        'markdown_inline',
-        'query',
-        'vim',
-        'vimdoc',
+
+    config = function()
+      -- [[ Autostart nvim-treesitter ]]
+      local ts_autostart = require 'custom.plugins.treesitter-autostart'
+
+      ts_autostart.setup {
         'gitcommit',
+        'lua',
+        'python',
+        'json',
         'javascript',
         'typescript',
+        'jsx',
         'tsx',
-        'json',
-        'html',
-        'css',
-      },
-      -- Autoinstall languages that are not installed
-      auto_install = true,
-      highlight = {
-        enable = true,
-        -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
-        --  If you are experiencing weird indenting issues, add the language to
-        --  the list of additional_vim_regex_highlighting and disabled languages for indent.
-        additional_vim_regex_highlighting = { 'ruby' },
-      },
-      indent = { enable = true, disable = { 'ruby' } },
-    },
+        json = { 'jsonc' },
+      }
+    end,
+
     -- There are additional nvim-treesitter modules that you can use to interact
     -- with nvim-treesitter. You should go explore a few and see what interests you:
     --

@@ -690,7 +690,7 @@ require('lazy').setup({
   -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
   -- Imports additional plugins from `lua/custom/plugins/*.lua`
-  -- { import = 'custom.plugins' },
+  { import = 'plugins' },
   --
   -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
   -- Or use telescope! In normal mode type `<space>sh` then write `lazy.nvim-plugin`

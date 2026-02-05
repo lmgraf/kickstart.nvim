@@ -674,13 +674,33 @@ require('lazy').setup({
 
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
+    build = ':TSUpdate',
+    branch = 'main',
+    main = 'nvim-treesitter.config',
     config = function()
-      local filetypes = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' }
-      require('nvim-treesitter').install(filetypes)
-      vim.api.nvim_create_autocmd('FileType', {
-        pattern = filetypes,
-        callback = function() vim.treesitter.start() end,
-      })
+      local ts = require 'custom.treesitter-bridge'
+
+      -- [[ Autostart Parser & Ensure Installed ]]
+      ts.setup {
+        'bash',
+        'c',
+        'diff',
+        'gitcommit',
+        'html',
+        'javascript',
+        json = { 'jsonc' },
+        'jsx',
+        'lua',
+        'luadoc',
+        'markdown',
+        'markdown_inline',
+        'python',
+        'query',
+        'tsx',
+        'typescript',
+        'vim',
+        'vimdoc',
+      }
     end,
   },
 

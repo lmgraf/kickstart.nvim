@@ -628,7 +628,7 @@ require('lazy').setup({
   -- require 'kickstart.plugins.lint',
   -- require 'kickstart.plugins.autopairs',
   -- require 'kickstart.plugins.neo-tree',
-  -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
+  require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
   -- Imports additional plugins from `lua/custom/plugins/*.lua`
   { import = 'plugins' },

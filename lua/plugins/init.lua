@@ -11,6 +11,13 @@ return {
   },
 
   {
+    'lmgraf/wsl-clipboard.nvim',
+    opts = {
+      mode = 'sync',
+    },
+  },
+
+  {
     'nvim-tree/nvim-tree.lua',
     version = '*',
     lazy = false,

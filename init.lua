@@ -504,6 +504,9 @@ require('lazy').setup({
 
       sources = {
         default = { 'lsp', 'path', 'snippets' },
+        per_filetype = {
+          gitcommit = { 'snippets', 'buffer' },
+        },
       },
 
       snippets = { preset = 'luasnip' },
@@ -515,7 +518,10 @@ require('lazy').setup({
       -- the rust implementation via `'prefer_rust_with_warning'`
       --
       -- See :h blink-cmp-config-fuzzy for more information
-      fuzzy = { implementation = 'lua' },
+      fuzzy = {
+        implementation = 'lua',
+        sorts = require('custom.helpers').blinkFuzzySort,
+      },
 
       -- Shows a signature help window while you type arguments for a function
       signature = { enabled = true },

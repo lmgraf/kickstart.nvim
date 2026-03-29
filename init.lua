@@ -326,6 +326,10 @@ require('lazy').setup({
       --  See `:help lsp-config` for information about keys and how to configure
       local servers = {
         clangd = {},
+        cssls = {},
+        emmet_language_server = {
+          filetypes = { 'html', 'css', 'javascriptreact', 'typescriptreact', 'vue' },
+        },
         eslint = {
           settings = {
             -- helps eslint find the eslintrc when it's placed in a subfolder
@@ -365,10 +369,12 @@ require('lazy').setup({
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
         'clang-format',
+        'css-variables-language-server',
         'lua-language-server',
         'prettierd',
         'pylsp',
         'stylua',
+        'vue-language-server',
         -- You can add other tools here that you want Mason to install
       })
 
@@ -615,9 +621,10 @@ require('lazy').setup({
       ts.setup {
         'bash',
         'c',
+        'css',
         'diff',
         'gitcommit',
-        'html',
+        html = { 'vue' },
         'javascript',
         json = { 'jsonc' },
         'jsx',
@@ -627,9 +634,11 @@ require('lazy').setup({
         'markdown_inline',
         'python',
         'query',
+        'scss',
         typescript = { 'tsx', 'typescriptreact' },
         'vim',
         'vimdoc',
+        'vue',
       }
     end,
   },
